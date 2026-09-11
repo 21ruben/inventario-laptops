@@ -8,7 +8,8 @@ from google.genai import types
 
 app = Flask(__name__, static_folder='templates')
 
-GEMINI_API_KEY = "AIzaSyBe8nEM5AUO-NUFl72ivtqk5VCd-cckaoA"
+G# Toma la clave de Render si existe, o usa el valor por defecto si pruebas localmente
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "TU_NUEVA_API_KEY_AQUI")
 client = genai.Client(api_key=GEMINI_API_KEY)
 
 def init_db():
