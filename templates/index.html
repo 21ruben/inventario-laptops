@@ -133,17 +133,17 @@
     <!-- Secciones Principal (Tabla + Historial) -->
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
       
-      <!-- Tabla de Equipos -->
+      <!-- Tabla de Equipos Mejorada -->
       <div class="lg:col-span-2 bg-slate-800/40 rounded-3xl border border-slate-700/60 overflow-hidden shadow-2xl backdrop-blur-xl flex flex-col">
         <div class="p-5 bg-slate-900/40 border-b border-slate-700/50 flex justify-between items-center">
           <h3 class="font-bold text-white flex items-center gap-2"><i class="fa-solid fa-server text-indigo-400"></i> Inventario General</h3>
         </div>
         <div class="overflow-x-auto p-2 flex-1">
-          <table class="w-full text-left border-collapse min-w-[750px]">
+          <table class="w-full text-left border-collapse min-w-[850px]">
             <thead class="text-slate-400 text-xs uppercase tracking-wider font-bold">
               <tr>
                 <th class="p-4 border-b border-slate-700/50">Equipo</th>
-                <th class="p-4 border-b border-slate-700/50">Especificaciones</th>
+                <th class="p-4 border-b border-slate-700/50 min-w-[260px]">Especificaciones</th>
                 <th class="p-4 border-b border-slate-700/50">Fechas</th>
                 <th class="p-4 border-b border-slate-700/50">Ganancia</th>
                 <th class="p-4 border-b border-slate-700/50 text-center">Estado</th>
@@ -156,7 +156,12 @@
                   <div class="font-extrabold text-indigo-400">{{ item.codigo }}</div>
                   <div class="font-semibold text-slate-200">{{ item.modelo }}</div>
                 </td>
-                <td class="p-4 text-xs text-slate-400 max-w-[200px] truncate" :title="item.specs">{{ item.specs }}</td>
+                <!-- Especificaciones Visibles y Estilizadas -->
+                <td class="p-4">
+                  <div class="text-xs text-slate-300 font-medium leading-relaxed bg-slate-900/60 p-2.5 rounded-xl border border-slate-700/40">
+                    {{ item.specs }}
+                  </div>
+                </td>
                 <td class="p-4 text-xs whitespace-nowrap">
                   <div class="flex items-center gap-1"><i class="fa-solid fa-arrow-right-to-bracket text-emerald-500/70 w-3"></i> <span class="text-slate-300">{{ item.fecha_ingreso || '-' }}</span></div>
                   <div class="flex items-center gap-1 mt-1"><i class="fa-solid fa-cart-shopping text-rose-500/70 w-3"></i> <span class="text-slate-500">{{ item.fecha_venta || '-' }}</span></div>
@@ -320,7 +325,6 @@
   </div>
 
   <script>
-    // Keyframes para el shimmer de carga añadido vía style programático o CSS en Tailwind (incluido arriba)
     const style = document.createElement('style');
     style.innerHTML = `@keyframes shimmer { 100% { transform: translateX(100%); } }`;
     document.head.appendChild(style);
@@ -436,11 +440,10 @@
           const { jsPDF } = window.jspdf;
           const doc = new jsPDF();
 
-          doc.setFillColor(15, 23, 42); // slate-900 oscuro
+          doc.setFillColor(15, 23, 42);
           doc.rect(0, 0, 210, 35, 'F');
           
-          // Acento de color en el PDF
-          doc.setFillColor(99, 102, 241); // indigo-500
+          doc.setFillColor(99, 102, 241);
           doc.rect(0, 34, 210, 1, 'F');
 
           doc.setTextColor(255, 255, 255);
