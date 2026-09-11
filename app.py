@@ -49,6 +49,14 @@ def init_db():
 
 init_db()
 
+def safe_float(val):
+    try:
+        if val is None or val == '':
+            return 0.0
+        return float(val)
+    except (ValueError, TypeError):
+        return 0.0
+
 @app.route('/')
 def index():
     return send_from_directory('templates', 'index.html')
@@ -88,47 +96,66 @@ def procesar_foto():
         response = client.models.generate_content(
             model='gemini-2.5-flash',
             contents=[types.Part.from_bytes(data=image_bytes, mime_type=file.content_type), prompt],
-            config=types.GenerateContentConfig(response_mime_type="application/json", temperature=0.1)
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                temperature=0.1
+            )
         )
-        return jsonify(json.loads(response.text))
+        res_json = json.loads(response.text)
+        return jsonify({
+            'modelo': str(res_json.get('modelo', '')),
+            'specs': str(res_json.get('specs', '')),
+            'costo': safe_float(res_json.get('costo', 0)),
+            'precio': safe_float(res_json.get('precio', 0))
+        })
     except Exception as e:
+        print("Error en procesar-foto:", str(e))
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/agregar', methods=['POST'])
 def agregar():
-    data = request.json
-    costo, precio = float(data.get('costo', 0)), float(data.get('precio', 0))
-    fecha_hoy = datetime.now().strftime('%Y-%m-%d')
-    
-    conn = sqlite3.connect('inventario.db')
-    cursor = conn.cursor()
-    cursor.execute('SELECT COUNT(*) FROM laptops')
-    count = cursor.fetchone()[0] + 1
-    
-    cursor.execute('''
-        INSERT INTO laptops (codigo, modelo, specs, costo, precio, ganancia, estado, fecha_ingreso, fecha_venta)
-        VALUES (?, ?, ?, ?, ?, ?, 'En Stock', ?, '-')
-    ''', (f"LAP-{count:03d}", data['modelo'], data['specs'], costo, precio, precio - costo, fecha_hoy))
-    
-    conn.commit()
-    conn.close()
-    return jsonify({'success': True})
+    try:
+        data = request.json or {}
+        costo = safe_float(data.get('costo'))
+        precio = safe_float(data.get('precio'))
+        fecha_hoy = datetime.now().strftime('%Y-%m-%d')
+        
+        conn = sqlite3.connect('inventario.db')
+        cursor = conn.cursor()
+        cursor.execute('SELECT COUNT(*) FROM laptops')
+        count = cursor.fetchone()[0] + 1
+        
+        cursor.execute('''
+            INSERT INTO laptops (codigo, modelo, specs, costo, precio, ganancia, estado, fecha_ingreso, fecha_venta)
+            VALUES (?, ?, ?, ?, ?, ?, 'En Stock', ?, '-')
+        ''', (f"LAP-{count:03d}", data.get('modelo', 'Sin Modelo'), data.get('specs', ''), costo, precio, precio - costo, fecha_hoy))
+        
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True})
+    except Exception as e:
+        print("Error en agregar:", str(e))
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/editar/<int:laptop_id>', methods=['POST'])
 def editar(laptop_id):
-    data = request.json
-    costo, precio = float(data.get('costo', 0)), float(data.get('precio', 0))
-    
-    conn = sqlite3.connect('inventario.db')
-    cursor = conn.cursor()
-    cursor.execute('''
-        UPDATE laptops 
-        SET modelo=?, specs=?, costo=?, precio=?, ganancia=?, estado=?, fecha_ingreso=?, fecha_venta=?
-        WHERE id=?
-    ''', (data['modelo'], data['specs'], costo, precio, precio - costo, data['estado'], data.get('fecha_ingreso', '-'), data.get('fecha_venta', '-'), laptop_id))
-    conn.commit()
-    conn.close()
-    return jsonify({'success': True})
+    try:
+        data = request.json or {}
+        costo = safe_float(data.get('costo'))
+        precio = safe_float(data.get('precio'))
+        
+        conn = sqlite3.connect('inventario.db')
+        cursor = conn.cursor()
+        cursor.execute('''
+            UPDATE laptops 
+            SET modelo=?, specs=?, costo=?, precio=?, ganancia=?, estado=?, fecha_ingreso=?, fecha_venta=?
+            WHERE id=?
+        ''', (data.get('modelo', ''), data.get('specs', ''), costo, precio, precio - costo, data.get('estado', 'En Stock'), data.get('fecha_ingreso', '-'), data.get('fecha_venta', '-'), laptop_id))
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/eliminar/<int:laptop_id>', methods=['DELETE'])
 def eliminar(laptop_id):
@@ -215,7 +242,10 @@ No se registraron ventas de laptops en el rango de fechas seleccionado.
             - Estado de inventario general al cierre.
             """
 
-            response = client.models.generate_content(model='gemini-2.5-flash', contents=prompt)
+            response = client.models.generate_content(
+                model='gemini-2.5-flash',
+                contents=prompt
+            )
             texto_reporte = response.text
 
         fecha_gen = datetime.now().strftime('%Y-%m-%d %H:%M')
