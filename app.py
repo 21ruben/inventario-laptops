@@ -8,7 +8,7 @@ from google.genai import types
 
 app = Flask(__name__, static_folder='templates')
 
-G# Toma la clave de Render si existe, o usa el valor por defecto si pruebas localmente
+# Toma la clave de Render si existe, o usa el valor por defecto si pruebas localmente
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "AQ.Ab8RN6LV2SRiw7SObVS7WPaJeQ8b5543VewvXUNapdWfkZS3iQ")
 client = genai.Client(api_key=GEMINI_API_KEY)
 
