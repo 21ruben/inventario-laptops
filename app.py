@@ -83,25 +83,39 @@ def procesar_foto():
     file = request.files['imagen']
     image_bytes = file.read()
     
-    prompt = """Analiza la imagen de la laptop o lista de especificaciones y extrae en formato JSON estricto con las siguientes reglas exactas:
-    1. "modelo": Únicamente Marca y Modelo comercial del equipo.
-    2. "specs": "[Procesador abreviado con generación y modelo entre paréntesis] / [RAM en GB] RAM / [Almacenamiento redondeado a 128GB, 256GB, 512GB, 1TB o 2TB] SSD". (Ejemplo: "i5 11va (i5-1135G7) / 16GB RAM / 512GB SSD").
-    3. "costo": Precio costo (solo número decimal o 0).
-    4. "precio": Precio venta (solo número decimal o 0).
-
-    Responde ÚNICAMENTE con el objeto JSON:
-    {"modelo": "...", "specs": "...", "costo": 0, "precio": 0}"""
+    prompt = """Analiza la imagen de la laptop o etiqueta de especificaciones y extrae la información.
+    Responde ÚNICAMENTE en JSON válido con la siguiente estructura exacta:
+    {
+      "modelo": "Marca y modelo comercial del equipo (ej: Dell Inspiron 5502)",
+      "specs": "i5 11va (i5-1135G7) / 16GB RAM / 512GB SSD",
+      "costo": 0,
+      "precio": 0
+    }
+    
+    Reglas para "specs":
+    - Procesador con generación y modelo exacto entre paréntesis (ej: "i5 11va (i5-1135G7)", "Ryzen 5 (R5-5500U)").
+    - RAM en GB.
+    - Almacenamiento redondeado a capacidades estándar: 128GB, 256GB, 512GB, 1TB o 2TB SSD.
+    - Junta todo en una sola línea separada por slashes '/'.
+    
+    Para costo y precio coloca solo números decimales o 0 si no están visibles."""
 
     try:
         response = client.models.generate_content(
             model='gemini-2.5-flash',
-            contents=[types.Part.from_bytes(data=image_bytes, mime_type=file.content_type), prompt],
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-                temperature=0.1
-            )
+            contents=[types.Part.from_bytes(data=image_bytes, mime_type=file.content_type), prompt]
         )
-        res_json = json.loads(response.text)
+        
+        # Limpiar bloques de código Markdown ```json ... ``` si los genera la IA
+        raw_text = response.text.strip()
+        if raw_text.startswith("```"):
+            raw_text = raw_text.split("```")[1]
+            if raw_text.startswith("json"):
+                raw_text = raw_text[4:]
+        raw_text = raw_text.strip()
+        
+        res_json = json.loads(raw_text)
+        
         return jsonify({
             'modelo': str(res_json.get('modelo', '')),
             'specs': str(res_json.get('specs', '')),
