@@ -1,3 +1,4 @@
+import os
 import sqlite3
 import json
 from datetime import datetime
@@ -239,8 +240,10 @@ No se registraron ventas de laptops en el rango de fechas seleccionado.
         })
 
     except Exception as e:
-        print("Error en servidor al generar reporte:", str(e))
-        return jsonify({'error': f'Error interno: {str(e)}'}), 500
+        error_msg = str(e)
+        if "503" in error_msg or "high demand" in error_msg:
+            return jsonify({'error': 'Los servidores de la IA están muy ocupados en este momento. Por favor, espera 30 segundos e inténtalo de nuevo.'}), 500
+        return jsonify({'error': f'Error de conexión: {error_msg}'}), 500
 
 @app.route('/api/reportes', methods=['GET'])
 def listar_reportes():
@@ -268,8 +271,5 @@ def eliminar_reporte(reporte_id):
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
-    app.run(port=5000, debug=True)
-
-    if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
