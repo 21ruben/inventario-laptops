@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Inventario Pro IA</title>
+  <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+  <!-- Google Fonts: Inter -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+  <!-- FontAwesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <style>
+    body { font-family: 'Inter', sans-serif; background-color: #0f172a; }
+    /* Scrollbar Personalizado */
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: rgba(255,255,255,0.02); border-radius: 10px; }
+    ::-webkit-scrollbar-thumb { background: rgba(99, 102, 241, 0.3); border-radius: 10px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(99, 102, 241, 0.6); }
+    /* Animación de entrada modal */
+    .modal-enter { animation: modalIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+    @keyframes modalIn {
+      0% { opacity: 0; transform: scale(0.95) translateY(10px); }
+      100% { opacity: 1; transform: scale(1) translateY(0); }
+    }
+  </style>
+</head>
+<body class="bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-slate-900 via-gray-900 to-black text-slate-200 min-h-screen p-4 md:p-8">
+  <div id="app" class="max-w-7xl mx-auto space-y-8">
+    
+    <!-- Encabezado Glassmorphism -->
+    <div class="relative group">
+      <div class="absolute inset-0 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-3xl blur-xl opacity-20 group-hover:opacity-40 transition duration-500"></div>
+      <div class="relative bg-white/5 backdrop-blur-xl border border-white/10 p-6 md:p-8 rounded-3xl flex flex-col md:flex-row justify-between items-center gap-4">
+        <div class="flex items-center gap-4">
+          <div class="bg-gradient-to-br from-indigo-500 to-purple-600 p-4 rounded-2xl shadow-lg shadow-indigo-500/30">
+            <i class="fa-solid fa-microchip text-2xl text-white"></i>
+          </div>
+          <div>
+            <h1 class="text-3xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white to-slate-400">
+              Inventario<span class="text-indigo-400">Pro</span>
+            </h1>
+            <p class="text-slate-400 text-sm font-medium mt-1"><i class="fa-solid fa-wand-magic-sparkles text-indigo-400 mr-1"></i> Potenciado por Gemini AI</p>
+          </div>
+        </div>
+        <button @click="abrirModalReporte" class="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold px-6 py-3 rounded-2xl shadow-lg shadow-purple-500/25 transition-all duration-300 hover:scale-105 flex items-center gap-2">
+          <i class="fa-solid fa-chart-pie"></i> Generar Reporte
+        </button>
+      </div>
+    </div>
+
+    <!-- Tarjetas KPI con Efecto Neón -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div class="relative group" v-for="(kpi, index) in kpis" :key="index">
+        <div class="absolute inset-0 bg-gradient-to-br rounded-3xl blur opacity-25 group-hover:opacity-50 transition duration-300" :class="kpi.glow"></div>
+        <div class="relative bg-slate-900/80 border border-slate-700/50 p-6 rounded-3xl backdrop-blur-sm flex flex-col justify-center h-full hover:-translate-y-1 transition-transform duration-300">
+          <div class="flex justify-between items-start mb-2">
+            <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">{{ kpi.title }}</span>
+            <i :class="[kpi.icon, kpi.iconColor, 'text-xl opacity-80']"></i>
+          </div>
+          <p class="text-3xl font-extrabold" :class="kpi.color">{{ kpi.value }}</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Registro Rápido (Panel Inteligente) -->
+    <div class="relative group">
+      <div class="absolute inset-0 bg-gradient-to-b from-blue-500/10 to-transparent rounded-3xl blur-md"></div>
+      <div class="relative bg-slate-800/40 border border-slate-700/60 p-6 md:p-8 rounded-3xl backdrop-blur-xl shadow-2xl">
+        <h2 class="text-xl font-bold text-white mb-6 flex items-center gap-2">
+          <i class="fa-solid fa-laptop-medical text-blue-400"></i> Nuevo Ingreso
+        </h2>
+        
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-5">
+          <!-- Carga IA -->
+          <div class="md:col-span-3">
+            <label class="block text-xs font-bold text-slate-400 mb-2">Auto-completar con IA:</label>
+            <div class="relative border-2 border-dashed border-indigo-500/30 hover:border-indigo-500/60 bg-indigo-500/5 rounded-2xl p-4 text-center cursor-pointer transition-colors group/file">
+              <input type="file" @change="subirFoto" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" :disabled="cargando">
+              <div v-if="!cargando" class="flex flex-col items-center justify-center space-y-2">
+                <i class="fa-solid fa-camera text-2xl text-indigo-400 group-hover/file:scale-110 transition-transform"></i>
+                <span class="text-xs font-semibold text-indigo-300">Subir foto o factura</span>
+              </div>
+              <div v-else class="flex flex-col items-center justify-center space-y-2">
+                <i class="fa-solid fa-circle-notch fa-spin text-2xl text-indigo-400"></i>
+                <span class="text-xs font-semibold text-indigo-300 animate-pulse">Analizando...</span>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Formulario Manual -->
+          <div class="md:col-span-9 grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="md:col-span-1">
+              <label class="block text-xs font-bold text-slate-400 mb-1">Marca y Modelo</label>
+              <div class="relative">
+                <i class="fa-solid fa-tag absolute left-4 top-3.5 text-slate-500 text-sm"></i>
+                <input v-model="form.modelo" placeholder="Ej: Dell Latitude" class="w-full bg-slate-900/50 border border-slate-700 rounded-xl pl-10 pr-4 py-3 text-sm text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all">
+              </div>
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-400 mb-1">Costo ($)</label>
+              <div class="relative">
+                <i class="fa-solid fa-dollar-sign absolute left-4 top-3.5 text-slate-500 text-sm"></i>
+                <input v-model="form.costo" type="number" placeholder="0.00" class="w-full bg-slate-900/50 border border-slate-700 rounded-xl pl-10 pr-4 py-3 text-sm text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all">
+              </div>
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-400 mb-1">Venta ($)</label>
+              <div class="relative">
+                <i class="fa-solid fa-hand-holding-dollar absolute left-4 top-3.5 text-slate-500 text-sm"></i>
+                <input v-model="form.precio" type="number" placeholder="0.00" class="w-full bg-slate-900/50 border border-slate-700 rounded-xl pl-10 pr-4 py-3 text-sm text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all">
+              </div>
+            </div>
+            <div class="md:col-span-2">
+              <label class="block text-xs font-bold text-slate-400 mb-1">Especificaciones</label>
+              <div class="relative">
+                <i class="fa-solid fa-memory absolute left-4 top-3.5 text-slate-500 text-sm"></i>
+                <input v-model="form.specs" placeholder="Ej: i5 11va (i5-1135G7) / 16GB RAM / 512GB SSD" class="w-full bg-slate-900/50 border border-slate-700 rounded-xl pl-10 pr-4 py-3 text-sm text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all">
+              </div>
+            </div>
+            <div class="md:col-span-1 flex items-end">
+              <button @click="guardarLaptop" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-xl shadow-lg shadow-indigo-500/25 transition-all duration-300 hover:-translate-y-0.5">
+                <i class="fa-solid fa-plus mr-1"></i> Guardar
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Secciones Principal (Tabla + Historial) -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      
+      <!-- Tabla de Equipos -->
+      <div class="lg:col-span-2 bg-slate-800/40 rounded-3xl border border-slate-700/60 overflow-hidden shadow-2xl backdrop-blur-xl flex flex-col">
+        <div class="p-5 bg-slate-900/40 border-b border-slate-700/50 flex justify-between items-center">
+          <h3 class="font-bold text-white flex items-center gap-2"><i class="fa-solid fa-server text-indigo-400"></i> Inventario General</h3>
+        </div>
+        <div class="overflow-x-auto p-2 flex-1">
+          <table class="w-full text-left border-collapse min-w-[750px]">
+            <thead class="text-slate-400 text-xs uppercase tracking-wider font-bold">
+              <tr>
+                <th class="p-4 border-b border-slate-700/50">Equipo</th>
+                <th class="p-4 border-b border-slate-700/50">Especificaciones</th>
+                <th class="p-4 border-b border-slate-700/50">Fechas</th>
+                <th class="p-4 border-b border-slate-700/50">Ganancia</th>
+                <th class="p-4 border-b border-slate-700/50 text-center">Estado</th>
+                <th class="p-4 border-b border-slate-700/50 text-center">Acciones</th>
+              </tr>
+            </thead>
+            <tbody class="text-sm">
+              <tr v-for="item in laptops" :key="item.id" class="hover:bg-slate-700/30 transition-colors group/row border-b border-slate-700/20 last:border-0">
+                <td class="p-4 whitespace-nowrap">
+                  <div class="font-extrabold text-indigo-400">{{ item.codigo }}</div>
+                  <div class="font-semibold text-slate-200">{{ item.modelo }}</div>
+                </td>
+                <td class="p-4 text-xs text-slate-400 max-w-[200px] truncate" :title="item.specs">{{ item.specs }}</td>
+                <td class="p-4 text-xs whitespace-nowrap">
+                  <div class="flex items-center gap-1"><i class="fa-solid fa-arrow-right-to-bracket text-emerald-500/70 w-3"></i> <span class="text-slate-300">{{ item.fecha_ingreso || '-' }}</span></div>
+                  <div class="flex items-center gap-1 mt-1"><i class="fa-solid fa-cart-shopping text-rose-500/70 w-3"></i> <span class="text-slate-500">{{ item.fecha_venta || '-' }}</span></div>
+                </td>
+                <td class="p-4 whitespace-nowrap">
+                  <div class="font-bold text-emerald-400">${{ item.ganancia }}</div>
+                  <div class="text-xs text-slate-500">Costo: ${{ item.costo }}</div>
+                </td>
+                <td class="p-4 text-center whitespace-nowrap">
+                  <span v-if="item.estado === 'En Stock'" class="bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 px-3 py-1 rounded-full text-xs font-bold inline-flex items-center gap-1 shadow-[0_0_10px_rgba(16,185,129,0.2)]">
+                    <i class="fa-solid fa-check-circle"></i> Stock
+                  </span>
+                  <span v-else class="bg-rose-500/10 text-rose-400 border border-rose-500/30 px-3 py-1 rounded-full text-xs font-bold inline-flex items-center gap-1">
+                    <i class="fa-solid fa-tag"></i> Vendido
+                  </span>
+                </td>
+                <td class="p-4 text-center whitespace-nowrap">
+                  <div class="flex items-center justify-center gap-2 opacity-100 lg:opacity-50 group-hover/row:opacity-100 transition-opacity">
+                    <button v-if="item.estado === 'En Stock'" @click="marcarVendido(item.id)" class="bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500 hover:text-white w-8 h-8 rounded-lg flex items-center justify-center transition-colors" title="Marcar Vendido">
+                      <i class="fa-solid fa-dollar-sign"></i>
+                    </button>
+                    <button @click="abrirEditor(item)" class="bg-blue-500/20 text-blue-400 hover:bg-blue-500 hover:text-white w-8 h-8 rounded-lg flex items-center justify-center transition-colors" title="Editar">
+                      <i class="fa-solid fa-pen-to-square"></i>
+                    </button>
+                    <button @click="eliminarLaptop(item.id)" class="bg-rose-500/20 text-rose-400 hover:bg-rose-500 hover:text-white w-8 h-8 rounded-lg flex items-center justify-center transition-colors" title="Eliminar">
+                      <i class="fa-solid fa-trash-can"></i>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+              <tr v-if="laptops.length === 0">
+                <td colspan="6" class="p-8 text-center text-slate-500">
+                  <i class="fa-solid fa-box-open text-4xl mb-3 opacity-50"></i>
+                  <p>No hay equipos registrados en el inventario.</p>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Historial de Reportes -->
+      <div class="bg-slate-800/40 rounded-3xl border border-slate-700/60 p-6 shadow-2xl backdrop-blur-xl flex flex-col max-h-[600px]">
+        <h3 class="font-bold text-white mb-5 flex items-center justify-between">
+          <span class="flex items-center gap-2"><i class="fa-regular fa-folder-open text-purple-400"></i> Reportes</span>
+          <span class="text-xs bg-slate-700/50 text-slate-300 px-2 py-1 rounded-lg border border-slate-600">{{ reportesGuardados.length }} guardados</span>
+        </h3>
+        <div class="space-y-3 overflow-y-auto flex-1 pr-2">
+          <div v-for="rep in reportesGuardados" :key="rep.id" class="p-4 bg-slate-900/50 border border-slate-700/50 rounded-2xl hover:border-purple-500/50 transition flex items-center justify-between group cursor-pointer hover:shadow-[0_0_15px_rgba(168,85,247,0.15)]" @click="verReporteGuardado(rep)">
+            <div class="flex-1 overflow-hidden">
+              <div class="font-bold text-sm text-purple-300 truncate"><i class="fa-solid fa-file-pdf mr-1 opacity-70"></i> {{ rep.titulo }}</div>
+              <div class="text-[10px] text-slate-400 mt-1 uppercase tracking-wide">Gen: {{ rep.fecha_generacion }}</div>
+            </div>
+            <button @click.stop="eliminarReporte(rep.id)" class="bg-slate-800 text-slate-500 hover:bg-rose-500/20 hover:text-rose-400 w-8 h-8 rounded-lg flex items-center justify-center transition-colors opacity-0 group-hover:opacity-100 shrink-0" title="Eliminar">
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+          </div>
+          <div v-if="reportesGuardados.length === 0" class="text-center py-10 text-slate-500">
+            <p class="text-sm">Aún no has generado reportes.</p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Modales -->
+    <!-- Modal Reporte -->
+    <div v-if="modalReporte" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div class="absolute inset-0 bg-slate-900/80 backdrop-blur-sm" @click="!generandoReporte && (modalReporte = false)"></div>
+      <div class="relative bg-slate-800 border border-slate-700 p-6 md:p-8 rounded-3xl max-w-2xl w-full shadow-2xl modal-enter">
+        <h3 class="text-xl font-bold text-white mb-6 flex items-center gap-2">
+          <i class="fa-solid fa-robot text-indigo-400"></i> Asistente de Reportes IA
+        </h3>
+        
+        <div class="grid grid-cols-2 gap-4 mb-6">
+          <div>
+            <label class="block text-xs font-bold text-slate-400 mb-2">Fecha Inicial:</label>
+            <input v-model="fechasFiltro.inicio" type="date" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm text-white focus:ring-2 focus:ring-indigo-500 outline-none">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-400 mb-2">Fecha Final:</label>
+            <input v-model="fechasFiltro.fin" type="date" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm text-white focus:ring-2 focus:ring-indigo-500 outline-none">
+          </div>
+        </div>
+        
+        <!-- Animación Carga -->
+        <div v-if="generandoReporte" class="my-8 py-10 bg-slate-900/50 border border-indigo-500/20 rounded-2xl text-center relative overflow-hidden">
+          <div class="absolute inset-0 bg-gradient-to-r from-transparent via-indigo-500/10 to-transparent w-full h-full animate-[shimmer_2s_infinite] -translate-x-full"></div>
+          <i class="fa-brands fa-google text-4xl text-indigo-500 mb-4 animate-bounce"></i>
+          <p class="text-sm font-bold text-indigo-300">Sintetizando datos financieros...</p>
+          <p class="text-xs text-slate-400 mt-1">Gemini está redactando el reporte ejecutivo.</p>
+        </div>
+
+        <div v-else-if="reporteActual" class="mt-4 p-5 bg-slate-900/80 border border-slate-700 rounded-2xl max-h-72 overflow-y-auto text-xs whitespace-pre-line text-slate-300 font-mono shadow-inner custom-scrollbar">
+          {{ reporteActual.contenido }}
+        </div>
+
+        <div class="flex justify-end gap-3 mt-8">
+          <button @click="modalReporte = false" :disabled="generandoReporte" class="px-5 py-2.5 bg-slate-700 hover:bg-slate-600 text-white text-sm font-bold rounded-xl transition">
+            Cerrar
+          </button>
+          <button @click="procesarReporteFechas" :disabled="generandoReporte" class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-bold rounded-xl transition flex items-center gap-2 shadow-lg shadow-indigo-500/25">
+            <i class="fa-solid fa-bolt"></i> Analizar Ventas
+          </button>
+          <button v-if="reporteActual && !generandoReporte" @click="descargarPDF(reporteActual)" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold rounded-xl transition flex items-center gap-2 shadow-lg shadow-emerald-500/25">
+            <i class="fa-solid fa-download"></i> PDF
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal Edición -->
+    <div v-if="editando" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div class="absolute inset-0 bg-slate-900/80 backdrop-blur-sm" @click="editando = false"></div>
+      <div class="relative bg-slate-800 border border-slate-700 p-6 md:p-8 rounded-3xl max-w-lg w-full shadow-2xl modal-enter">
+        <h3 class="text-xl font-bold text-white mb-6 flex items-center gap-2">
+          <i class="fa-solid fa-pen-to-square text-blue-400"></i> Editar Equipo
+        </h3>
+        <div class="space-y-4">
+          <div>
+            <label class="block text-xs text-slate-400 mb-1">Modelo</label>
+            <input v-model="editForm.modelo" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm text-white focus:ring-2 focus:ring-blue-500 outline-none">
+          </div>
+          <div>
+            <label class="block text-xs text-slate-400 mb-1">Especificaciones</label>
+            <input v-model="editForm.specs" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm text-white focus:ring-2 focus:ring-blue-500 outline-none">
+          </div>
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs text-slate-400 mb-1">Costo</label>
+              <input v-model="editForm.costo" type="number" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm text-white focus:ring-2 focus:ring-blue-500 outline-none">
+            </div>
+            <div>
+              <label class="block text-xs text-slate-400 mb-1">Precio Venta</label>
+              <input v-model="editForm.precio" type="number" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm text-white focus:ring-2 focus:ring-blue-500 outline-none">
+            </div>
+            <div>
+              <label class="text-xs text-slate-400 mb-1 block">Fecha Ingreso:</label>
+              <input v-model="editForm.fecha_ingreso" type="date" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm text-white focus:ring-2 focus:ring-blue-500 outline-none">
+            </div>
+            <div>
+              <label class="text-xs text-slate-400 mb-1 block">Fecha Venta:</label>
+              <input v-model="editForm.fecha_venta" type="date" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm text-white focus:ring-2 focus:ring-blue-500 outline-none">
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs text-slate-400 mb-1">Estado</label>
+            <select v-model="editForm.estado" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm text-white focus:ring-2 focus:ring-blue-500 outline-none">
+              <option value="En Stock">En Stock</option>
+              <option value="Vendido">Vendido</option>
+            </select>
+          </div>
+        </div>
+        <div class="flex justify-end gap-3 mt-8">
+          <button @click="editando = false" class="px-5 py-2.5 bg-slate-700 hover:bg-slate-600 text-white text-sm font-bold rounded-xl transition">Cancelar</button>
+          <button @click="guardarEdicion" class="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold rounded-xl transition shadow-lg shadow-blue-500/25">Guardar Cambios</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // Keyframes para el shimmer de carga añadido vía style programático o CSS en Tailwind (incluido arriba)
+    const style = document.createElement('style');
+    style.innerHTML = `@keyframes shimmer { 100% { transform: translateX(100%); } }`;
+    document.head.appendChild(style);
+
+    const { createApp } = Vue;
+    createApp({
+      data() {
+        return {
+          laptops: [],
+          reportesGuardados: [],
+          cargando: false,
+          generandoReporte: false,
+          editando: false,
+          modalReporte: false,
+          reporteActual: null,
+          fechasFiltro: { inicio: '', fin: '' },
+          form: { modelo: '', specs: '', costo: '', precio: '' },
+          editForm: {}
+        }
+      },
+      computed: {
+        totalInversion() { return this.laptops.reduce((acc, i) => acc + i.costo, 0); },
+        totalVentas() { return this.laptops.filter(i => i.estado === 'Vendido').reduce((acc, i) => acc + i.precio, 0); },
+        totalGanancia() { return this.laptops.filter(i => i.estado === 'Vendido').reduce((acc, i) => acc + i.ganancia, 0); },
+        enStockCount() { return this.laptops.filter(i => i.estado === 'En Stock').length; },
+        kpis() {
+          return [
+            { title: 'Inversión Total', value: `$${this.totalInversion.toLocaleString()}`, icon: 'fa-solid fa-wallet', color: 'text-blue-400', iconColor: 'text-blue-500', glow: 'from-blue-500/30 to-blue-600/10' },
+            { title: 'Ingreso Ventas', value: `$${this.totalVentas.toLocaleString()}`, icon: 'fa-solid fa-chart-line', color: 'text-emerald-400', iconColor: 'text-emerald-500', glow: 'from-emerald-500/30 to-emerald-600/10' },
+            { title: 'Ganancia Neta', value: `$${this.totalGanancia.toLocaleString()}`, icon: 'fa-solid fa-sack-dollar', color: 'text-purple-400', iconColor: 'text-purple-500', glow: 'from-purple-500/30 to-purple-600/10' },
+            { title: 'Equipos en Stock', value: `${this.enStockCount} Unds`, icon: 'fa-solid fa-boxes-stacked', color: 'text-indigo-400', iconColor: 'text-indigo-500', glow: 'from-indigo-500/30 to-indigo-600/10' }
+          ]
+        }
+      },
+      methods: {
+        async cargarLaptops() {
+          const res = await fetch('/api/laptops');
+          this.laptops = await res.json();
+        },
+        async cargarReportes() {
+          const res = await fetch('/api/reportes');
+          this.reportesGuardados = await res.json();
+        },
+        async subirFoto(e) {
+          const file = e.target.files[0];
+          if (!file) return;
+          this.cargando = true;
+          const formData = new FormData();
+          formData.append('imagen', file);
+          try {
+            const res = await fetch('/api/procesar-foto', { method: 'POST', body: formData });
+            const data = await res.json();
+            this.form.modelo = data.modelo || '';
+            this.form.specs = data.specs || '';
+            this.form.costo = data.costo || 0;
+            this.form.precio = data.precio || 0;
+          } catch (err) { alert("Error IA: " + err); }
+          this.cargando = false;
+        },
+        async guardarLaptop() {
+          await fetch('/api/agregar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(this.form) });
+          this.form = { modelo: '', specs: '', costo: '', precio: '' };
+          this.cargarLaptops();
+        },
+        abrirModalReporte() {
+          const hoy = new Date().toISOString().split('T')[0];
+          this.fechasFiltro = { inicio: hoy, fin: hoy };
+          this.reporteActual = null;
+          this.modalReporte = true;
+        },
+        async procesarReporteFechas() {
+          this.generandoReporte = true;
+          this.reporteActual = null;
+          try {
+            const res = await fetch('/api/reporte/generar', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(this.fechasFiltro)
+            });
+            const data = await res.json();
+            if (data.error) {
+              alert("Aviso: " + data.error);
+            } else {
+              this.reporteActual = data;
+              this.cargarReportes();
+            }
+          } catch (e) {
+            alert("Error al solicitar el reporte: " + e);
+          }
+          this.generandoReporte = false;
+        },
+        verReporteGuardado(rep) {
+          this.reporteActual = rep;
+          this.fechasFiltro = { inicio: rep.fecha_inicio, fin: rep.fecha_fin };
+          this.modalReporte = true;
+        },
+        async eliminarReporte(id) {
+          if (confirm("¿Eliminar este reporte del historial de forma permanente?")) {
+            try {
+              const res = await fetch(`/api/reportes/eliminar/${id}`, { method: 'DELETE' });
+              const data = await res.json();
+              if (data.success) {
+                this.cargarReportes();
+                if (this.reporteActual && this.reporteActual.id === id) {
+                  this.modalReporte = false;
+                  this.reporteActual = null;
+                }
+              }
+            } catch (e) { alert("Error al eliminar: " + e); }
+          }
+        },
+        descargarPDF(rep) {
+          const { jsPDF } = window.jspdf;
+          const doc = new jsPDF();
+
+          doc.setFillColor(15, 23, 42); // slate-900 oscuro
+          doc.rect(0, 0, 210, 35, 'F');
+          
+          // Acento de color en el PDF
+          doc.setFillColor(99, 102, 241); // indigo-500
+          doc.rect(0, 34, 210, 1, 'F');
+
+          doc.setTextColor(255, 255, 255);
+          doc.setFontSize(18);
+          doc.setFont("helvetica", "bold");
+          doc.text("REPORTE EJECUTIVO DE VENTAS", 14, 20);
+
+          doc.setFontSize(9);
+          doc.setFont("helvetica", "normal");
+          doc.setTextColor(203, 213, 225);
+          doc.text(`Generado: ${rep.fecha_generacion}`, 14, 28);
+          doc.text(`Rango: ${rep.fecha_inicio} al ${rep.fecha_fin}`, 140, 28);
+
+          let startY = 45;
+          const lineas = rep.contenido.split('\n');
+
+          doc.setTextColor(15, 23, 42);
+          doc.setFontSize(10);
+
+          let tablaFilas = [];
+          let enTabla = false;
+
+          lineas.forEach((linea) => {
+            const l = linea.trim();
+
+            if (l.startsWith('|')) {
+              if (!l.includes('---')) {
+                const celdas = l.split('|').map(c => c.trim()).filter(c => c.length > 0);
+                if (celdas.length > 0) tablaFilas.push(celdas);
+              }
+              enTabla = true;
+            } else {
+              if (enTabla && tablaFilas.length > 0) {
+                doc.autoTable({
+                  startY: startY,
+                  head: [tablaFilas[0]],
+                  body: tablaFilas.slice(1),
+                  theme: 'striped',
+                  headStyles: { fillColor: [99, 102, 241], textColor: [255, 255, 255], fontStyle: 'bold' },
+                  styles: { fontSize: 8, cellPadding: 3, textColor: [51, 65, 85] },
+                  alternateRowStyles: { fillColor: [248, 250, 252] },
+                  margin: { left: 14, right: 14 }
+                });
+                startY = doc.lastAutoTable.finalY + 8;
+                tablaFilas = [];
+                enTabla = false;
+              }
+
+              if (l.length > 0) {
+                if (l.endsWith(':') || l.startsWith('===')) {
+                  doc.setFont("helvetica", "bold");
+                  doc.setFontSize(11);
+                  doc.setTextColor(15, 23, 42);
+                  if (!l.startsWith('===')) {
+                    doc.text(l, 14, startY);
+                    startY += 6;
+                  }
+                } else {
+                  doc.setFont("helvetica", "normal");
+                  doc.setFontSize(9.5);
+                  doc.setTextColor(71, 85, 105);
+                  
+                  const textSplitted = doc.splitTextToSize(l, 180);
+                  doc.text(textSplitted, 14, startY);
+                  startY += (textSplitted.length * 5);
+                }
+              }
+            }
+          });
+
+          if (tablaFilas.length > 0) {
+            doc.autoTable({
+              startY: startY,
+              head: [tablaFilas[0]],
+              body: tablaFilas.slice(1),
+              theme: 'striped',
+              headStyles: { fillColor: [99, 102, 241], textColor: [255, 255, 255], fontStyle: 'bold' },
+              styles: { fontSize: 8, cellPadding: 3, textColor: [51, 65, 85] },
+              alternateRowStyles: { fillColor: [248, 250, 252] },
+              margin: { left: 14, right: 14 }
+            });
+          }
+
+          const totalPages = doc.internal.getNumberOfPages();
+          for (let i = 1; i <= totalPages; i++) {
+            doc.setPage(i);
+            doc.setFontSize(8);
+            doc.setTextColor(148, 163, 184);
+            doc.text(`Página ${i} de ${totalPages} - InventarioPro`, 14, 287);
+          }
+
+          doc.save(`${rep.titulo.replace(/ /g, '_')}.pdf`);
+        },
+        abrirEditor(item) { this.editForm = { ...item }; this.editando = true; },
+        async guardarEdicion() {
+          await fetch(`/api/editar/${this.editForm.id}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(this.editForm) });
+          this.editando = false;
+          this.cargarLaptops();
+        },
+        async eliminarLaptop(id) {
+          if (confirm("¿Estás seguro de eliminar este equipo del inventario?")) {
+            await fetch(`/api/eliminar/${id}`, { method: 'DELETE' });
+            this.cargarLaptops();
+          }
+        },
+        async marcarVendido(id) {
+          await fetch(`/api/vender/${id}`, { method: 'POST' });
+          this.cargarLaptops();
+        }
+      },
+      mounted() { 
+        this.cargarLaptops(); 
+        this.cargarReportes();
+      }
+    }).mount('#app');
+  </script>
+</body>
+</html>
